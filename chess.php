@@ -919,7 +919,7 @@ class ECO {
 }
 
 
-class UCI {
+class UCI2 {
 
 	public static $uci = "uci\n";				// uci => id + opitions + uciok
 	public static $setoption = "setoption";		// setoption name  [value ]
@@ -1222,5 +1222,405 @@ class UCI {
 		return ["name"=>$name, "type"=>$type, "default"=>$default, "min"=>$min, "max"=>$max, "values"=>$values];
 	}
 }
+
+
+class UCI {
+
+	protected $proc;
+	protected $engine_stdin;
+	protected $engine_stdout;
+	protected $engine_stderr;
+
+	protected $queue;
+
+	protected $id_name;
+	protected $id_author;
+	protected $options;
+
+	public function __constructor() {
+		// does not initialise variables?!
+	}
+
+	public function __destruct() {
+		$this->deinit();
+	}
+
+
+	function _uci() : void {
+
+		$success = fwrite($this->engine_stdin, "uci\n");
+		if($success === false) throw new RuntimeException("Unable to send command! (Connection lost?)");
+		$this->queue->enqueue("uciok");
+	}
+	
+	function _isready() : void {
+
+		$success = fwrite($this->engine_stdin, "isready\n");
+		if($success === false) throw new RuntimeException("Unable to send command! (Connection lost?)");
+		$this->queue->enqueue("readyok");
+	}
+	
+	function _option(string $name, string $value="") : void {
+
+		$command = "setoption name {$name}";
+		if($value !== "") {
+			$command .= " value {$value}";
+		}
+		$command .= "\n";
+		$success = fwrite($this->engine_stdin, $command);
+		if($success === false) throw new RuntimeException("Unable to send command! (Connection lost?)");
+	}
+
+	function _register(string $name, string $code="") : void {
+		$command = "register {$name}";
+		if($code !== "") {
+			$command .= " code {$code}";
+		}
+		$command .= "\n";
+		$success = fwrite($this->engine_stdin, $command);
+		if($success === false) throw new RuntimeException("Unable to send command! (Connection lost?)");
+	}
+
+	function _newgame() : void {
+
+		$success = fwrite($this->engine_stdin, "newgame\n");
+		if($success === false) throw new RuntimeException("Unable to send command! (Connection lost?)");
+	}
+
+	function _position(string $position, string $moves="") : void {
+
+		// to do: implement moves
+
+		$command = "position ";
+		if($position === "startpos") {
+			$command .= "startpos";
+		}
+		else {
+			$command .= "fen {$position}";
+		}
+		$command .= "\n";
+		$success = fwrite($this->engine_stdin, $command);
+		if($success === false) throw new RuntimeException("Unable to send command! (Connection lost?)");
+	}
+	
+	function _go(array $options) : void {
+
+		$command = "go";
+		if(isset($options["movetime"]) === true) {
+			$command .= " movetime {$options["movetime"]}";
+		}
+		$command .= "\n";
+		$success = fwrite($this->engine_stdin, $command);
+		if($success === false) throw new RuntimeException("Unable to send command! (Connection lost?)");
+	}
+
+	function _stop() : void {
+
+		$success = fwrite($this->engine_stdin, "stop\n");
+		if($success === false) throw new RuntimeException("Unable to send command! (Connection lost?)");
+	}
+
+	function _ponderhit() : void {
+
+		$success = fwrite($this->engine_stdin, "ponderhit\n");
+		if($success === false) throw new RuntimeException("Unable to send command! (Connection lost?)");
+	}
+
+	function _quit() : void {
+
+		$success = fwrite($this->engine_stdin, "quit\n");
+		if($success === false) throw new RuntimeException("Unable to send command! (Connection lost?)");
+	}
+
+	function sync(int $timeout=1) : bool {}
+
+	function get_status() : int {
+
+		$this->queue->rewind();
+		$status = proc_get_status($this->proc);
+
+		if($status["running"] !== true) {
+			return UCI::$STATUS_DISCONNECTED;
+		}
+		else if($this->queue->current() === "registration") {
+			return UCI::$STATUS_REGISTERING;
+		}
+		else if($this->queue->isEmpty() === false) {
+			return UCI::$STATUS_SYNCHING;
+		}
+		else {
+			return UCI::$STATUS_OK;
+		}
+	}
+
+	function get_id_name() : ?string {
+		return $this->id_name;
+	}
+
+	function get_id_author() : ?string {
+		return $this->id_author;
+	}
+
+	function set_timeout(int $timeout) : void {
+		$this->timeout = $timeout;
+	}
+
+	public function init(string $engine_path) : void {
+
+		$cwd = pathinfo($engine_path, PATHINFO_DIRNAME);
+		$cmd = $engine_path;
+
+		$this->method = $method;
+
+		$descriptor = [0=>["pipe", "r"], 1=>["pipe", "w"], 2=>["pipe", "w"]];
+		$this->proc = proc_open($cmd, $descriptor, $pipes, $cwd, null, ["bypass_shell"=>true]);
+
+		$this->engine_stdin = $pipes[0];
+		$this->engine_stdout = $pipes[1];
+
+		$this->queue = new SplQueue();
+	}
+
+	public function deinit() : void {
+		
+		$this->_quit();
+		if(is_resource($this->engine_stdin) === true) fclose($this->engine_stdin);
+		if(is_resource($this->engine_stdout) === true) fclose($this->engine_stdout);
+		if(is_resource($this->engine_stderr) === true) fclose($this->engine_stderr);
+		if(is_resource($this->proc) === true) proc_close($this->proc);
+	}
+
+	public function send(string $command, array $options=null) : void {
+
+		if(is_resource($this->engine_stdin) !== true) {
+			throw new Exception("Cannot send commands to engine!");
+		}
+	
+		$uci_command = "";
+
+		if($command === UCI::$uci) {
+			$uci_command = $command;
+			$this->queue->enqueue("uciok");
+		}
+		else if($command === UCI::$isready) {
+			$uci_command = $command;
+			$this->queue->enqueue("readyok");
+		}
+		else if($command === UCI::$ucinewgame) {
+			$uci_command = $command;
+		}
+		else if($command === UCI::$stop) {
+			$uci_command = $command;
+		}
+		else if($command === UCI::$quit) {
+			$uci_command = $command;
+		}
+		else if($command === UCI::$setoption) {
+			// setoption name  [value ]
+			// to do: implement this to finish the options implementation
+		}
+		else if($command === UCI::$position) {
+			// position [fen  | startpos ]  moves  .... 
+			if(isset($options["fen"]) === true) {
+				$uci_command = "{$command} fen {$options["fen"]}\n";
+			}
+			else if(isset($options["startpos"]) === true) {
+				$uci_command = "position startpos moves e2e4\n";
+			}
+		}
+		else if($command === UCI::$go) {
+			// go [options] => bestmove / ponder
+			if(isset($options["movetime"]) === true) {
+				$uci_command = "{$command} movetime {$options["movetime"]}\n";
+				$this->queue->enqueue("bestmove");
+			}
+		}
+
+		if($uci_command !== "") {
+			echo ">>> {$uci_command}";
+			$res = fwrite($this->engine_stdin, $uci_command);
+			if($res === false) {
+				echo "Error writting command!" . PHP_EOL;
+			}
+		}
+	}
+
+	public function wait(int $timeout=4) : void {
+
+		// wait until expected responses queue is empty or timeout
+
+		$timer = time();
+		$info_index = 0;
+		$info_count = 50;
+		$this->queue->rewind();
+
+		if($this->method === "files") {
+			$this->engine_stdout = fopen(UCI::$engine_stdout_path, "r");
+			fseek($this->engine_stdout, $this->engine_stdout_pos);
+		}
+
+		$is_waiting = true;
+		while($is_waiting === true) {
+
+			$line = fgets($this->engine_stdout, 512);
+			if($line !== false) {
+
+				$this->engine_stdout_pos += strlen($line);
+				
+				$line = trim($line);
+				$code = explode(" ", $line)[0];
+				
+				if($code === "id") {
+					$id_cmd = substr($line, 0, 7);
+					if($id_cmd === "id name") {
+						$this->id_name = trim(substr($line, 7));
+					}
+					else if($id_cmd === "id auth") {
+						$this->id_author = trim(substr($line, 9));
+					}
+				}
+				else if($code === "option") {
+
+					$option = UCI::create_option();
+
+					// parse option name
+					$a = strpos($line, " name ") + strlen(" name ");
+					$b = strpos($line, " type ");
+					if($a !== false) $option["name"] = substr($line, $a, $b - $a);
+
+					// parse option type
+					$a = $b + strlen(" type ");
+					$b = strpos($line, " default");
+					if($b !== false) $option["type"] = substr($line, $a, $b - $a);
+					else $option["type"] = substr($line, $a);
+
+					// parse option default
+					if($b !== false) {
+						$a = $b + strlen(" default");
+						if($option["type"] === "combo") {
+							$b = strpos($line, " var ");
+						}
+						else {
+							$b = strpos($line, " min ");	
+						}
+						if($b !== false) $option["default"] = trim(substr($line, $a, $b - $a));
+						else $option["default"] = trim(substr($line, $a));
+						if($option["default"] === "<empty>") $option["default"] = "";
+					}
+
+					// parse min/max
+					if($b !== false && $option["type"] !== "combo") {
+
+						$a = $b + strlen(" min ");
+						$b = strpos($line, " max ");
+						if($b !== false) $option["min"] = substr($line, $a, $b - $a);
+						else $option["min"] = substr($line, $a);
+
+						if($b !== false) {
+							$a = $b + strlen(" max ");
+							$option["max"] = substr($line, $a);
+						}
+					}
+					else if( ($a = strpos($line, " var ")) !== false ) {
+						$option["values"] = substr($line, $a + 5);
+						$option["values"] = explode(" var ", $option["values"]);
+					}
+
+					$this->options[] = $option;
+				}
+				else if($code === "uciok") {
+					if($this->queue->current() === $code) {
+						$this->queue->dequeue();
+						$this->queue->rewind();
+						echo $line . PHP_EOL;
+					}
+				}
+				else if($code === "readyok") {
+					if($this->queue->current() === $code) {
+						$this->queue->dequeue();
+						$this->queue->rewind();
+						echo $line . PHP_EOL;
+					}
+				}
+				else if($code === "info") {
+					if($info_index++ > $info_count) {
+						echo str_repeat(".", $info_index) . PHP_EOL;
+						$info_index = 0;
+					}
+				}
+				else if($code === "bestmove") {
+					if($this->queue->current() === $code) {
+						// echo "found best move" . PHP_EOL;
+						$this->queue->dequeue();
+						$this->queue->rewind();
+						echo PHP_EOL . $line . PHP_EOL;
+					}
+				}
+			}
+			else {
+				usleep(300000);
+			}
+
+			// test queue
+			$is_empty = ($this->queue->isEmpty() === true);
+			$is_timed_out = (time() - $timer >= $timeout);
+
+			if($is_empty === true || $is_timed_out === true) {
+				$is_waiting = false;
+				if($info_index > 0) echo str_repeat(".", $info_index) . PHP_EOL;
+			}
+		}
+
+		if($this->method === "files") {
+			fclose($this->engine_stdout);
+		}
+	}
+
+	public function is_synched() : bool {
+		return $this->queue->isEmpty();
+	}
+
+	public function get_id_name() : ?string {
+		return $this->id_name;
+	}
+
+	public function get_id_author() : ?string {
+		return $this->id_author;
+	}
+
+	public function get_option(string $name) : array {
+
+		$found = false;
+		$option_index = 0;
+		$option_count = count($this->options);
+
+		while($option_index < $option_count && $found !== true) {
+
+			if($this->options[$option_index]["name"] === $name) {
+				$found = true;
+			}
+			$option_index++;
+		}
+
+		$option = null;
+		if($found === true) {
+			$option = $this->options[$option_index - 1];
+		}
+
+		return $option;
+	}
+
+	protected function create_option(array $options=[]) : array{
+
+		$name = (isset($options["name"]) === true ? $options["name"] : 0);
+		$type = (isset($options["type"]) === true ? $options["type"] : "");
+		$default = (isset($options["default"]) === true ? $options["default"] : "");
+		$min = (isset($options["min"]) === true ? $options["min"] : "");
+		$max = (isset($options["max"]) === true ? $options["max"] : "");
+		$values = (isset($options["values"]) === true ? $options["values"] : []);
+		return ["name"=>$name, "type"=>$type, "default"=>$default, "min"=>$min, "max"=>$max, "values"=>$values];
+	}
+}
+
 
 ?>

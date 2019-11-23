@@ -47,4 +47,39 @@ while($uci->is_synched() !== true) {
 
 $uci->send(UCI::$quit);
 
+
+
+function _uci() : void {}
+function _uci_sync(int $timeout=1) : bool {}
+
+function _isready() : void {}
+function _isready_sync(int $timeout=1) : bool {}
+
+function _option(string $name, $value) : void {}
+function _register(string $name, string $code) : void {}
+function _newgame() : void {}
+function _position(string $position, string $moves="") : void {}
+
+function _go(array $options) : void {}
+function _go_sync(array $options, int $timeout=0) : ?array {}
+
+function _stop() : void {}
+function _stop_sync(int $timeout=1) : ?array {}	// ?? should return bestmove & ponder ??
+
+function _ponderhit() : void {}
+
+function _quit() : void {}
+
+function init() : void {}
+function deinit() : void {}
+
+function send(string $command, string $response="") : ?string {} // ? is this a good idea ?
+function sync(int $timeout=1) : bool {}
+
+function get_status() : int {} // registering | synching | ok
+function get_id_name() : string {}
+function get_id_author() : string {}
+
+function set_timeout(int $timeout) : void {}
+
 ?>

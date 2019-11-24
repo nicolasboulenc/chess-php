@@ -1,6 +1,9 @@
-<?php
+<?php 
 
-require("../chess.php");
+require("../pgn.php");
+require("../eco.php");
+use Chess\PGN;
+use Chess\ECO;
 
 // load pgn file
 $file_content = file_get_contents("chess-game+annotations.pgn");
@@ -8,7 +11,7 @@ $pgn = new PGN();
 $pgn->load($file_content);
 
 // get moves
-$moves = $pgn->stringify_moves();
+$moves = $pgn->stringifyMoves();
 
 // load eco file
 $eco_content = file_get_contents("scid.eco");
@@ -21,9 +24,7 @@ echo "Opening code: {$opening["eco"]}" . PHP_EOL;
 echo "Opening name: {$opening["name"]}" . PHP_EOL;
 
 // write eco tag back to different pgn file
-$pgn->set_tag("eco", $opening["eco"]);
+$pgn->setTag("eco", $opening["eco"]);
 $pgn_content = $pgn->stringify();
 
 file_put_contents("chess-game.pgn", $pgn_content);
-
-?>

@@ -1,23 +1,23 @@
 <?php
+
 declare(strict_types=1);
 namespace Chess;
 
-class PGN implements \SeekableIterator
+class PGN
 {
-    protected const WHITE = "w";
-    protected const BLACK = "b";
-    protected const VALID_TAGS = ["event", "site", "date", "round", "white", "black", "result", "eco"];
+    private const WHITE = "w";
+    private const BLACK = "b";
+    private const VALID_TAGS = ["event", "site", "date", "round", "white", "black", "result", "eco"];
 
-    protected $tags;
-    protected $moves;
-    protected $moveIndex;
+    private $tags;
+    private $moves;
 
     public function __constructor()
     {
         $this->init();
     }
 
-    protected function init(): void
+    private function init(): void
     {
         $this->tags = [];
         $this->moves = [];
@@ -31,16 +31,16 @@ class PGN implements \SeekableIterator
         $this->parseMoves($pgn);
     }
 
-    public function stringify(array $options = []): string
+    public function stringify(?array $options = null): string
     {
-        if (count($options) === 0) {
+        if ($options === null) {
             $options = ["nag_codes" => true, "annotations" => true, "variations" => true];
         }
 
-        return $this->stringifyTags() . PHP_EOL . $this->stringifyMoves($options) . " " . $this->getTag("result");
+        return $this->getTagText() . PHP_EOL . $this->getMoveText($options) . " " . $this->getTag("result");
     }
 
-    protected function parseTags(string &$pgn): void
+    private function parseTags(string &$pgn): void
     {
         $lines = explode("[", $pgn);
 
@@ -60,7 +60,7 @@ class PGN implements \SeekableIterator
         }
     }
 
-    public function stringifyTags(): string
+    private function getTagText(): string
     {
         $string = "";
         foreach ($this->tags as $tag => $val) {
@@ -88,7 +88,7 @@ class PGN implements \SeekableIterator
         }
     }
 
-    protected function parseMoves(string &$pgn): void
+    private function parseMoves(string &$pgn): void
     {
         $move = PGN::createMove();
         $move["color"] = PGN::WHITE;
@@ -99,8 +99,8 @@ class PGN implements \SeekableIterator
         $continue = true;
 
         while ($char_index <= $char_count && $continue === true) {
-            // end of the file
             if ($char_index === $char_count) {
+                // end of the file
                 $this->moves[] = $move;
                 $continue = false;
             } elseif (is_numeric($pgn[$char_index]) === true) {
@@ -169,7 +169,7 @@ class PGN implements \SeekableIterator
                 $pgn[$char_index] === "R" ||
                 $pgn[$char_index] === "O") {
                 // new black move
-                if ($move["move"] !== "") {
+                if ($move["san"] !== "") {
                     $this->moves[] = $move;
                     $num = $move["num"];
 
@@ -179,7 +179,7 @@ class PGN implements \SeekableIterator
                 $pos = strpos($pgn, " ", $char_index);
                 $buffer = substr($pgn, $char_index, $pos - $char_index);
 
-                $move["move"] = $buffer;
+                $move["san"] = $buffer;
 
                 $char_index = $pos + 1;
             } elseif ($pgn[$char_index] === " " || $pgn[$char_index] === "\n" || $pgn[$char_index] === "\r") {
@@ -192,80 +192,60 @@ class PGN implements \SeekableIterator
         }
     }
 
-    public function stringifyMoves(array $options = []): string
+    public function getMoveText(array $options = []): string
     {
         $move_text = "";
         foreach ($this->moves as $move) {
             if ($move["color"] === PGN::WHITE) {
                 $move_text .= "{$move["num"]}.";
+            } else {
+                $move_text .= " ";
             }
 
-            $move_text .= "{$move["move"]} ";
+            $move_text .= "{$move["san"]}";
 
-            if (isset($options["nag_codes"]) === true && $options["nag_codes"] === true) {
+            if (isset($options["nag_codes"]) === true && $options["nag_codes"] === true && count($move["nag_codes"]) > 0) {
                 $nag_codes = $move["nag_codes"];
                 foreach ($nag_codes as $nag_code) {
-                    $move_text .= "{$nag_code} ";
+                    $move_text .= " {$nag_code}";
                 }
             }
-            if (isset($options["annotations"]) === true && $options["annotations"] === true) {
-                $move_text .= "{$move["annotation"]} ";
+            if (isset($options["annotations"]) === true && $options["annotations"] === true && $move["annotation"] !== "") {
+                $move_text .= " {$move["annotation"]}";
             }
-            if (isset($options["variations"]) === true && $options["variations"] === true) {
-                $move_text .= "{$move["variation"]} ";
+            if (isset($options["variations"]) === true && $options["variations"] === true && $move["variation"] !== "") {
+                $move_text .= " {$move["variation"]}";
+            }
+
+            if ($move["color"] === PGN::BLACK) {
+                $move_text .= " ";
             }
         }
 
         return $move_text;
     }
 
-    protected static function createMove(int $num=0, string $color="", string $move=""): array
+    public function getSANs(): iterable
     {
-        return ["num"=>$num, "color"=>$color, "move"=>$move, "nag_codes"=>[], "annotation"=>"", "variation"=>""];
+        $SANs = [];
+        foreach ($this->moves as $move) {
+            $SANs[] = $move["san"];
+        }
+        return $SANs;
     }
 
-    public function seek($position): void
+    public function getMoves(): iterable
     {
-        if($this->valid() === true) {
-            $this->moveIndex = $position;
-        }
-        else {
-            throw new \OutOfBoundsException();
-        }
+        return $this->moves;
     }
 
-    public function current()
+    private static function createMove(int $num = 0, string $color = "", string $move = ""): array
     {
-        if($this->valid() === true) {
-            return $this->moves[$this->moveIndex];
-        }
-        else{
-            return null;
-        }
-    }
-
-    public function key()
-    {
-        if($this->valid() === true) {
-            return $this->moves[$this->moveIndex]["move"];
-        }
-        else{
-            return null;
-        }
-    }
-
-    public function next(): void
-    {
-        $this->moveIndex++;
-    }
-
-    public function rewind(): void
-    {
-        $this->moveIndex = 0;
-    }
-
-    public function valid(): bool
-    {
-        return ( ($this->moveIndex >= 0) && ($this->moveIndex < count($this->moves)) );
+        return [    "num"=>$num,
+                    "color"=>$color,
+                    "san"=>$move,
+                    "nag_codes"=>[],
+                    "annotation"=>"",
+                    "variation"=>"" ];
     }
 }

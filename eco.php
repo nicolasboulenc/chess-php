@@ -1,17 +1,18 @@
 <?php
+
 declare(strict_types=1);
 namespace Chess;
 
 class ECO
 {
-    protected $tree;
+    private $tree;
 
     public function __constructor()
     {
         $this->init();
     }
 
-    protected function init(): void
+    private function init(): void
     {
         $this->tree = null;
     }
@@ -49,9 +50,12 @@ class ECO
         }
     }
 
-    protected function buildTree(string $line): void
+    private function buildTree(string $line): void
     {
-		if($line === "") return;
+        if ($line === "") {
+            return;
+        }
+
         $pos0 = strpos($line, "\"");
         $eco = trim(substr($line, 0, $pos0));
         $pos1 = strpos($line, "\"", $pos0 + 1);
@@ -77,30 +81,31 @@ class ECO
         }
     }
 
-    protected static function createNode(string $eco = "", string $name = "", string $move = ""): object
+    private static function createNode(string $eco = "", string $name = "", string $move = ""): object
     {
-        return (object) ["eco" => $eco, "name" => $name, "move" => $move, "nodes" => []];
+        return (object) ["eco"=>$eco, "name"=>$name, "move"=>$move, "nodes"=>[]];
     }
 
-	public function identifyTraversable(\Traversable $moves): ?array 
-	{
+    public function identify(iterable $moves): ?array
+    {
         $probe = $this->tree;
         $opening = ["eco"=>"", "name"=>""];
 
-		foreach($moves as $move) {
+        foreach ($moves as $move) {
             if (isset($probe->nodes[$move]) === true) {
                 $probe = $probe->nodes[$move];
                 $opening["eco"] = $probe->eco;
                 $opening["name"] = $probe->name;
             } else {
-				break;
+                break;
             }
-		}
+        }
 
-		return $opening;
-	}
+        return $opening;
+    }
 
-    public function identifyString(string $moves): ?array
+    // not used
+    private function identifyString(string $moves): ?array
     {
         $moves = explode(" ", $moves);
         $probe = $this->tree;

@@ -200,7 +200,9 @@ class UCI
         $this->queue->rewind();
 
         $is_empty = ($this->queue->isEmpty() === true);
-        if($is_empty === true) return true;
+        if ($is_empty === true) {
+            return true;
+        }
 
         $is_waiting = true;
         while ($is_waiting === true) {

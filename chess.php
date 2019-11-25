@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 namespace Chess;
 
@@ -15,8 +16,8 @@ class Chess
         $this->fen = null;
     }
 
-    public function init() {
-
+    public function init()
+    {
         $this->chessboard = array(
             "8" => ["a" => "r", "b" => "n", "c" => "b", "d" => "q", "e" => "k", "f" => "b", "g" => "n", "h" => "r"],
             "7" => ["a" => "p", "b" => "p", "c" => "p", "d" => "p", "e" => "p", "f" => "p", "g" => "p", "h" => "p"],
@@ -31,7 +32,7 @@ class Chess
         $this->fen = (object)["activeColor"=>"", "castlingAvailability"=>true, "enPassant"=>false, "halfMoveClock"=>0, "fullMoveNumber"=>0];
     }
 
-    public function pgn_next()
+    public function next()
     {
         if ($this->Move_Index === count($this->Moves)) {
             return null;
@@ -58,7 +59,7 @@ class Chess
         return $res;
     }
 
-    private static function move_create(): object
+    private static function createMove(): object
     {
         $move = (object) array("num" => 0,
             "white" => null,
@@ -191,7 +192,7 @@ class Chess
         $this->Chessboard[$destination[1]][$destination[0]] = $piece;
     }
 
-    private function move_is_valid($piece, $origin, $destination, $is_taking = false): bool
+    private function moveIsValid($piece, $origin, $destination, $is_taking = false): bool
     {
         // This is only used to find the moving piece, as such does not check:
         // out of board plays, checks, check mates, etc
@@ -290,7 +291,4 @@ class Chess
 
         return $fen;
     }
-
 }
-
-?>

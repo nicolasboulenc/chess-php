@@ -70,9 +70,9 @@ class PGN implements \SeekableIterator
         return $string;
     }
 
-    public function getTag(string $tag): string
+    public function getTag(string $tag): ?string
     {
-        $val = "";
+        $val = null;
         if (isset($this->tags[$tag]) === true) {
             $val = $this->tags[$tag];
         }
@@ -224,7 +224,7 @@ class PGN implements \SeekableIterator
         return ["num"=>$num, "color"=>$color, "move"=>$move, "nag_codes"=>[], "annotation"=>"", "variation"=>""];
     }
 
-    public function seek($position)
+    public function seek($position): void
     {
         if($this->valid() === true) {
             $this->moveIndex = $position;
@@ -254,17 +254,17 @@ class PGN implements \SeekableIterator
         }
     }
 
-    public function next()
+    public function next(): void
     {
         $this->moveIndex++;
     }
 
-    public function rewind()
+    public function rewind(): void
     {
         $this->moveIndex = 0;
     }
 
-    public function valid() : bool
+    public function valid(): bool
     {
         return ( ($this->moveIndex >= 0) && ($this->moveIndex < count($this->moves)) );
     }

@@ -25,7 +25,7 @@ class ECO
 
         // tidy up array
         while ($eco_index < count($eco_array)) {
-            if (strlen($eco_array[$eco_index]) === 0) {
+            if (strlen($eco_array[$eco_index]) === 0 || $eco_array[$eco_index] === "\r") {
                 array_splice($eco_array, $eco_index, 1);
             } elseif ($eco_array[$eco_index][0] === "#") {
                 array_splice($eco_array, $eco_index, 1);
@@ -51,6 +51,7 @@ class ECO
 
     protected function buildTree(string $line): void
     {
+		if($line === "") return;
         $pos0 = strpos($line, "\"");
         $eco = trim(substr($line, 0, $pos0));
         $pos1 = strpos($line, "\"", $pos0 + 1);
@@ -81,7 +82,25 @@ class ECO
         return (object) ["eco" => $eco, "name" => $name, "move" => $move, "nodes" => []];
     }
 
-    public function identify(string $moves): ?array
+	public function identifyTraversable(\Traversable $moves): ?array 
+	{
+        $probe = $this->tree;
+        $opening = ["eco"=>"", "name"=>""];
+
+		foreach($moves as $move) {
+            if (isset($probe->nodes[$move]) === true) {
+                $probe = $probe->nodes[$move];
+                $opening["eco"] = $probe->eco;
+                $opening["name"] = $probe->name;
+            } else {
+				break;
+            }
+		}
+
+		return $opening;
+	}
+
+    public function identifyString(string $moves): ?array
     {
         $moves = explode(" ", $moves);
         $probe = $this->tree;

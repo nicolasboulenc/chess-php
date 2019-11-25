@@ -1,209 +1,34 @@
 <?php
-
 declare(strict_types=1);
-
 namespace Chess;
 
 class Chess
 {
-    public $Chessboard;
-
-    // PGN Tags
-    public $Event;
-    public $Site;
-    public $Date;
-    public $Round;
-    public $White;
-    public $Black;
-    public $Result;
-
-    // PGN related variables.
-    public $Moves;
-    public $Move_Index;
-
-    // FEN related variables.
-    private $Active_Colour;
-    private $Castling_Availability;
-    private $En_Passant;
-    private $Halfmove_Clock;
-    private $Fullmove_Number;
-
-    // ECO tree
-    private $Eco;
-
+    public $chessboard;
+    public $pgn;
+    public $fen;
+    
     public function __construct()
     {
-        $this->Chessboard = Chess::chessboard_create();
+        $this->chessboard = null;
+        $this->pgn = null;
+        $this->fen = null;
     }
 
-    public function pgn_load($pgn)
-    {
-        // Init PGN variables
-        $this->Event = "";
-        $this->Site = "";
-        $this->Date = "";
-        $this->Round = "";
-        $this->White = "";
-        $this->Black = "";
-        $this->Result = "";
-        $this->Moves = [];
-        $this->Move_Index = 0;
+    public function init() {
 
-        // Init FEN state variables
-        $this->Active_Colour = "w";
-        $this->Halfmove_Clock = 0;
-        $this->Fullmove_Number = 0;
+        $this->chessboard = array(
+            "8" => ["a" => "r", "b" => "n", "c" => "b", "d" => "q", "e" => "k", "f" => "b", "g" => "n", "h" => "r"],
+            "7" => ["a" => "p", "b" => "p", "c" => "p", "d" => "p", "e" => "p", "f" => "p", "g" => "p", "h" => "p"],
+            "6" => ["a" => ".", "b" => ".", "c" => ".", "d" => ".", "e" => ".", "f" => ".", "g" => ".", "h" => "."],
+            "5" => ["a" => ".", "b" => ".", "c" => ".", "d" => ".", "e" => ".", "f" => ".", "g" => ".", "h" => "."],
+            "4" => ["a" => ".", "b" => ".", "c" => ".", "d" => ".", "e" => ".", "f" => ".", "g" => ".", "h" => "."],
+            "3" => ["a" => ".", "b" => ".", "c" => ".", "d" => ".", "e" => ".", "f" => ".", "g" => ".", "h" => "."],
+            "2" => ["a" => "P", "b" => "P", "c" => "P", "d" => "P", "e" => "P", "f" => "P", "g" => "P", "h" => "P"],
+            "1" => ["a" => "R", "b" => "N", "c" => "B", "d" => "Q", "e" => "K", "f" => "B", "g" => "N", "h" => "R"],
+        );
 
-        $pgn = str_replace("\r\n", "\n", $pgn);
-
-        $move = Chess::move_create();
-
-        $beg = 0; // for debug purpose
-        $end = 0; // for debug purpose
-
-        $game_end_index = 0;
-
-        $char_index = 0;
-        $char_count = strlen($pgn);
-
-        while ($char_index < $char_count) {
-            // check for end of game
-            if ($game_end_index !== 0 && $char_index === $game_end_index) {
-                // do end of game things
-                // echo "reached end of game." . PHP_EOL;
-                $char_index += strlen($this->Result);
-                $this->Moves[] = $move;
-
-                // reset variables
-                //$game = PGN_Game_Init();
-                $game_end_index = 0;
-            } elseif ($pgn[$char_index] === "[") {
-                // tag
-                $pos = strpos($pgn, "]", $char_index);
-                // trim square brackets
-                $buffer = substr($pgn, $char_index + 1, $pos - $char_index - 2);
-                $tokens = explode(" \"", $buffer);
-                if ($tokens[0] === "Event") {
-                    $this->Event = $tokens[1];
-                } elseif ($tokens[0] === "Site") {
-                    $this->Site = $tokens[1];
-                } elseif ($tokens[0] === "Date") {
-                    $this->Date = $tokens[1];
-                } elseif ($tokens[0] === "Round") {
-                    $this->Round = $tokens[1];
-                } elseif ($tokens[0] === "White") {
-                    $this->White = $tokens[1];
-                } elseif ($tokens[0] === "Black") {
-                    $this->Black = $tokens[1];
-                } elseif ($tokens[0] === "Result") {
-                    $this->Result = $tokens[1];
-                    $offset = $char_index + strlen("[Result \"\"]") + strlen($this->Result);
-                    $game_end_index = strpos($pgn, $this->Result, $offset);
-                }
-                $char_index = $pos + 1;
-            } elseif (is_numeric($pgn[$char_index]) === true) {
-                // move num?
-                $pos = strpos($pgn, ".", $char_index);
-
-                // ignore black move number in form of #...
-                $buffer = substr($pgn, $char_index, $pos - $char_index + 1);
-                if ($pgn[$pos + 1] === "." && $pgn[$pos + 1] === ".") {
-                    $char_index = $pos + 3;
-                    continue;
-                }
-
-                $buffer = substr($pgn, $char_index, $pos - $char_index + 1);
-                $end = $pos - strlen($buffer);
-
-                if ($move["num"] != 0) {
-                    // display line for debug
-                    // echo substr($pgn, $beg, $end - $beg) . PHP_EOL;
-                    // $beg = $end + 1;
-
-                    // add move to moves
-                    $this->Moves[] = $move;
-                    // echo json_encode($move, JSON_PRETTY_PRINT) . PHP_EOL . PHP_EOL;
-
-                    // create new move
-                    $move = Chess::move_create();
-                }
-                $move["num"] = $buffer;
-
-                $char_index = $pos + 1;
-            } elseif ($pgn[$char_index] === "(") {
-                // variation
-                $pos = strpos($pgn, ")", $char_index);
-                $buffer = substr($pgn, $char_index, $pos - $char_index + 1);
-                $buffer = str_replace("\n", " ", $buffer);
-                $buffer = str_replace("  ", " ", $buffer);
-
-                if ($move->black->move === "") {
-                    $move->white->variation = $buffer;
-                } else {
-                    $move->black->variation = $buffer;
-                }
-
-                $char_index = $pos + 1;
-            } elseif ($pgn[$char_index] === "{") {
-                // annotation
-                $pos = strpos($pgn, "}", $char_index);
-                $buffer = substr($pgn, $char_index, $pos - $char_index + 1);
-                $buffer = str_replace("\n", " ", $buffer);
-                $buffer = str_replace("  ", " ", $buffer);
-
-                if ($move->black->move === "") {
-                    $move->white->annotation = $buffer;
-                } else {
-                    $move->black->annotation = $buffer;
-                }
-
-                $char_index = $pos + 1;
-            } elseif ($pgn[$char_index] === "$") {
-                // NAG
-                $buffer = "";
-                while ($pgn[$char_index] !== " " && $pgn[$char_index] !== "\r" && $pgn[$char_index] !== "\n") {
-                    $buffer .= $pgn[$char_index];
-                    $char_index++;
-                }
-
-                if ($move->black->move === "") {
-                    $move->white->nag_codes[] = $buffer;
-                } else {
-                    $move->black->nag_codes[] = $buffer;
-                }
-            } elseif ($pgn[$char_index] === "a" ||
-                // move
-                $pgn[$char_index] === "b" ||
-                $pgn[$char_index] === "c" ||
-                $pgn[$char_index] === "d" ||
-                $pgn[$char_index] === "e" ||
-                $pgn[$char_index] === "f" ||
-                $pgn[$char_index] === "g" ||
-                $pgn[$char_index] === "h" ||
-                $pgn[$char_index] === "K" ||
-                $pgn[$char_index] === "Q" ||
-                $pgn[$char_index] === "B" ||
-                $pgn[$char_index] === "N" ||
-                $pgn[$char_index] === "R" ||
-                $pgn[$char_index] === "O") {
-                $pos = strpos($pgn, " ", $char_index);
-                $buffer = substr($pgn, $char_index, $pos - $char_index);
-
-                if ($move->white->move === "") {
-                    $move->white->move = $buffer;
-                } else {
-                    $move->black->move = $buffer;
-                }
-
-                $char_index = $pos;
-            } elseif ($pgn[$char_index] === " " || $pgn[$char_index] === "\n") {
-                // white space
-                $char_index++;
-            } else {
-                echo "Error: Unknown token. {$pgn[$char_index]}!" . PHP_EOL;
-                return;
-            }
-        }
+        $this->fen = (object)["activeColor"=>"", "castlingAvailability"=>true, "enPassant"=>false, "halfMoveClock"=>0, "fullMoveNumber"=>0];
     }
 
     public function pgn_next()
@@ -233,71 +58,6 @@ class Chess
         return $res;
     }
 
-    public function eco_load($eco)
-    {
-        $eco_array = explode("\n", $eco);
-
-        $eco_index = 0;
-
-        // tidy up array
-        while ($eco_index < count($eco_array)) {
-            if (strlen($eco_array[$eco_index]) === 0) {
-                array_splice($eco_array, $eco_index, 1);
-            } elseif ($eco_array[$eco_index][0] === "#") {
-                array_splice($eco_array, $eco_index, 1);
-            } elseif ($eco_array[$eco_index][0] === " ") {
-                // append moves to previous line although not first move
-                $eco_array[$eco_index - 1] .= $eco_array[$eco_index];
-                array_splice($eco_array, $eco_index, 1);
-            } else {
-                $eco_index++;
-            }
-        }
-
-        // build tree
-        $tree = (object) ["eco" => "A00a", "name" => "Start position", "move" => "*", "nodes" => []];
-
-        $eco_index = 1;
-        $eco_count = count($eco_array);
-        while ($eco_index < $eco_count) {
-            $this->eco_build($tree, $eco_array[$eco_index]);
-            $eco_index++;
-        }
-
-        return $tree;
-    }
-
-    private function eco_build(object $tree, string $line)
-    {
-        $pos0 = strpos($line, "\"");
-        $eco = trim(substr($line, 0, $pos0));
-        $pos1 = strpos($line, "\"", $pos0 + 1);
-        $name = substr($line, $pos0 + 1, $pos1 - $pos0 - 1);
-        $moves = trim(substr($line, $pos1 + 1));
-
-        $probe = $tree;
-        $moves = explode(" ", $moves);
-        foreach ($moves as $move) {
-            if ($move === "") {
-                continue;
-            }
-
-            $pos = strpos($move, ".");
-            if ($pos !== false) {
-                $move = substr($move, $pos + 1);
-            }
-
-            if (isset($probe->nodes[$move]) !== true) {
-                $probe->nodes[$move] = (object) ["eco" => $eco, "name" => $name, "move" => $move, "nodes" => []];
-            }
-            $probe = $probe->nodes[$move];
-        }
-    }
-
-    public function eco_detect()
-    {
-    }
-
     private static function move_create(): object
     {
         $move = (object) array("num" => 0,
@@ -315,20 +75,6 @@ class Chess
             "variation" => "");
 
         return $move;
-    }
-
-    private static function chessboard_create(): array
-    {
-        return array(
-            "8" => ["a" => "r", "b" => "n", "c" => "b", "d" => "q", "e" => "k", "f" => "b", "g" => "n", "h" => "r"],
-            "7" => ["a" => "p", "b" => "p", "c" => "p", "d" => "p", "e" => "p", "f" => "p", "g" => "p", "h" => "p"],
-            "6" => ["a" => ".", "b" => ".", "c" => ".", "d" => ".", "e" => ".", "f" => ".", "g" => ".", "h" => "."],
-            "5" => ["a" => ".", "b" => ".", "c" => ".", "d" => ".", "e" => ".", "f" => ".", "g" => ".", "h" => "."],
-            "4" => ["a" => ".", "b" => ".", "c" => ".", "d" => ".", "e" => ".", "f" => ".", "g" => ".", "h" => "."],
-            "3" => ["a" => ".", "b" => ".", "c" => ".", "d" => ".", "e" => ".", "f" => ".", "g" => ".", "h" => "."],
-            "2" => ["a" => "P", "b" => "P", "c" => "P", "d" => "P", "e" => "P", "f" => "P", "g" => "P", "h" => "P"],
-            "1" => ["a" => "R", "b" => "N", "c" => "B", "d" => "Q", "e" => "K", "f" => "B", "g" => "N", "h" => "R"],
-        );
     }
 
     public function move($move, $white_playing = true)
@@ -544,6 +290,7 @@ class Chess
 
         return $fen;
     }
+
 }
 
 ?>

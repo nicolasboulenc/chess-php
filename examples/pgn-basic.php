@@ -11,4 +11,8 @@ $white = $pgn->getTag("white");
 $black = $pgn->getTag("black");
 echo "{$white} vs. {$black}" . PHP_EOL;
 
+foreach($pgn as $move) {
+    echo $move["move"] . PHP_EOL;
+}
+
 ?>

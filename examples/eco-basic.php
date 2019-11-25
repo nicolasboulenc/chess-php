@@ -25,6 +25,6 @@ echo "Opening name: {$opening["name"]}" . PHP_EOL;
 
 // write eco tag back to different pgn file
 $pgn->setTag("eco", $opening["eco"]);
-$pgn_content = $pgn->stringify();
+$file_content = $pgn->stringify();
 
-file_put_contents("chess-game.pgn", $pgn_content);
+file_put_contents("chess-game.pgn", $file_content);

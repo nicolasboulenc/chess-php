@@ -1,28 +1,34 @@
 <?php
 
-require("../chess.php");
+require("../uci.php");
+use Chess\UCI;
 
 $engine_path = "C:/Users/nicol/Documents/Scid-4.7.0/bin/engines/stockfish.exe";
 
 $uci = new UCI();
 $uci->init($engine_path);
 
-$uci->send(UCI::$uci);
-while($uci->is_synched() !== true) {
-	$uci->wait();
+$uci->_uci();
+while($uci->sync() === false) {
+    // you may want to do something else
 }
 
-echo $uci->get_id_name() . PHP_EOL;
-echo $uci->get_id_author() . PHP_EOL;
+echo $uci->getIdName() . PHP_EOL;
+echo $uci->getIdAuthor() . PHP_EOL;
 
-$option = $uci->get_option("Threads");
+$option = $uci->getOption("Threads");
 if($option !== null) {
-	$uci->send(UCI::$setoption, ["name"=>"Threads", "value"=>4]);
-	while($uci->is_synched() !== true) {
-		$uci->wait();
-	}
+    $uci->_setoption("Threads", 4);
+    while($uci->sync() === false) {
+        // you may want to do something else
+    }    
 }
 
-$uci->send(UCI::$quit);
+$uci->_uci();
+while($uci->sync() === false) {
+    // you may want to do something else
+}
+
+$uci->_quit();
 
 ?>

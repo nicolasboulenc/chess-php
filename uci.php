@@ -5,14 +5,14 @@ namespace Chess;
 class UCI
 {
     protected $proc;
-    protected $engine_stdin;
-    protected $engine_stdout;
-    protected $engine_stderr;
+    protected $engineStdIn;
+    protected $engineStdOut;
+    protected $engineStdErr;
 
     protected $queue;
 
-    protected $id_name;
-    protected $id_author;
+    protected $idName;
+    protected $idAuthor;
     protected $result;
     protected $options;
 
@@ -28,7 +28,7 @@ class UCI
 
     public function _uci(): void
     {
-        $success = fwrite($this->engine_stdin, "uci\n");
+        $success = fwrite($this->engineStdIn, "uci\n");
         if ($success === false) {
             throw new RuntimeException("Unable to send command! (Connection lost?)");
         }
@@ -38,7 +38,7 @@ class UCI
 
     public function _isready(): void
     {
-        $success = fwrite($this->engine_stdin, "isready\n");
+        $success = fwrite($this->engineStdIn, "isready\n");
         if ($success === false) {
             throw new RuntimeException("Unable to send command! (Connection lost?)");
         }
@@ -46,14 +46,14 @@ class UCI
         $this->queue->enqueue("readyok");
     }
 
-    public function _option(string $name, string $value = ""): void
+    public function _setoption(string $name, string $value = ""): void
     {
         $command = "setoption name {$name}";
         if ($value !== "") {
             $command .= " value {$value}";
         }
         $command .= "\n";
-        $success = fwrite($this->engine_stdin, $command);
+        $success = fwrite($this->engineStdIn, $command);
         if ($success === false) {
             throw new RuntimeException("Unable to send command! (Connection lost?)");
         }
@@ -66,7 +66,7 @@ class UCI
             $command .= " code {$code}";
         }
         $command .= "\n";
-        $success = fwrite($this->engine_stdin, $command);
+        $success = fwrite($this->engineStdIn, $command);
         if ($success === false) {
             throw new RuntimeException("Unable to send command! (Connection lost?)");
         }
@@ -74,7 +74,7 @@ class UCI
 
     public function _newgame(): void
     {
-        $success = fwrite($this->engine_stdin, "newgame\n");
+        $success = fwrite($this->engineStdIn, "newgame\n");
         if ($success === false) {
             throw new RuntimeException("Unable to send command! (Connection lost?)");
         }
@@ -92,7 +92,7 @@ class UCI
             $command .= "fen {$position}";
         }
         $command .= "\n";
-        $success = fwrite($this->engine_stdin, $command);
+        $success = fwrite($this->engineStdIn, $command);
         if ($success === false) {
             throw new RuntimeException("Unable to send command! (Connection lost?)");
         }
@@ -106,7 +106,7 @@ class UCI
             $command .= " movetime {$move_time}";
         }
         $command .= "\n";
-        $success = fwrite($this->engine_stdin, $command);
+        $success = fwrite($this->engineStdIn, $command);
         if ($success === false) {
             throw new RuntimeException("Unable to send command! (Connection lost?)");
         }
@@ -116,7 +116,7 @@ class UCI
 
     public function _stop(): void
     {
-        $success = fwrite($this->engine_stdin, "stop\n");
+        $success = fwrite($this->engineStdIn, "stop\n");
         if ($success === false) {
             throw new RuntimeException("Unable to send command! (Connection lost?)");
         }
@@ -124,7 +124,7 @@ class UCI
 
     public function _ponderhit(): void
     {
-        $success = fwrite($this->engine_stdin, "ponderhit\n");
+        $success = fwrite($this->engineStdIn, "ponderhit\n");
         if ($success === false) {
             throw new RuntimeException("Unable to send command! (Connection lost?)");
         }
@@ -132,7 +132,7 @@ class UCI
 
     public function _quit(): void
     {
-        $success = fwrite($this->engine_stdin, "quit\n");
+        $success = fwrite($this->engineStdIn, "quit\n");
         if ($success === false) {
             throw new RuntimeException("Unable to send command! (Connection lost?)");
         }
@@ -140,12 +140,12 @@ class UCI
 
     public function getIdName(): ?string
     {
-        return $this->id_name;
+        return $this->idName;
     }
 
     public function getIdAuthor(): ?string
     {
-        return $this->id_author;
+        return $this->idAuthor;
     }
 
     public function setTimeout(int $timeout): void
@@ -163,25 +163,25 @@ class UCI
         if ($this->proc === false) {
             throw new RuntimeException("Unable to connect to the engine! (Incorrect engine_path?)");
         }
-        $this->engine_stdin = $pipes[0];
-        $this->engine_stdout = $pipes[1];
+        $this->engineStdIn = $pipes[0];
+        $this->engineStdOut = $pipes[1];
 
-        $this->queue = new SplQueue();
+        $this->queue = new \SplQueue();
     }
 
     public function deinit(): void
     {
         $this->_quit();
-        if (is_resource($this->engine_stdin) === true) {
-            fclose($this->engine_stdin);
+        if (is_resource($this->engineStdIn) === true) {
+            fclose($this->engineStdIn);
         }
 
-        if (is_resource($this->engine_stdout) === true) {
-            fclose($this->engine_stdout);
+        if (is_resource($this->engineStdOut) === true) {
+            fclose($this->engineStdOut);
         }
 
-        if (is_resource($this->engine_stderr) === true) {
-            fclose($this->engine_stderr);
+        if (is_resource($this->engineStdErr) === true) {
+            fclose($this->engineStdErr);
         }
 
         if (is_resource($this->proc) === true) {
@@ -199,9 +199,12 @@ class UCI
         $info_count = 50;
         $this->queue->rewind();
 
+        $is_empty = ($this->queue->isEmpty() === true);
+        if($is_empty === true) return true;
+
         $is_waiting = true;
         while ($is_waiting === true) {
-            $line = fgets($this->engine_stdout, 512);
+            $line = fgets($this->engineStdOut, 512);
             if ($line !== false) {
                 $line = trim($line);
                 $code = explode(" ", $line)[0];
@@ -209,12 +212,12 @@ class UCI
                 if ($code === "id") {
                     $id_cmd = substr($line, 0, 7);
                     if ($id_cmd === "id name") {
-                        $this->id_name = trim(substr($line, 7));
+                        $this->idName = trim(substr($line, 7));
                     } elseif ($id_cmd === "id auth") {
-                        $this->id_author = trim(substr($line, 9));
+                        $this->idAuthor = trim(substr($line, 9));
                     }
                 } elseif ($code === "option") {
-                    $option = UCI::create_option();
+                    $option = UCI::createOption();
 
                     // parse option name
                     $a = strpos($line, " name ") + strlen(" name ");

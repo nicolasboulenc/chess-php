@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Chess;
 
-class PGN
+class PGN implements \SeekableIterator
 {
     protected const WHITE = "w";
     protected const BLACK = "b";
@@ -10,6 +10,7 @@ class PGN
 
     protected $tags;
     protected $moves;
+    protected $moveIndex;
 
     public function __constructor()
     {
@@ -20,6 +21,7 @@ class PGN
     {
         $this->tags = [];
         $this->moves = [];
+        $this->moveIndex = 0;
     }
 
     public function load(string &$pgn): void
@@ -120,7 +122,7 @@ class PGN
                     if ($move["color"] === PGN::WHITE) {
                         $color = PGN::BLACK;
                     }
-                    $move = PGN::createMove(["color" => $color]);
+                    $move = PGN::createMove(0, $color);
                 }
                 $move["num"] = intval($buffer);
                 $char_index = $pos + 1;
@@ -171,7 +173,7 @@ class PGN
                     $this->moves[] = $move;
                     $num = $move["num"];
 
-                    $move = PGN::createMove(["num" => $num, "color" => PGN::BLACK]);
+                    $move = PGN::createMove($num, PGN::BLACK);
                 }
 
                 $pos = strpos($pgn, " ", $char_index);
@@ -217,11 +219,53 @@ class PGN
         return $move_text;
     }
 
-    protected static function createMove(array $options = []): array
+    protected static function createMove(int $num=0, string $color="", string $move=""): array
     {
-        $num = (isset($options["num"]) === true ? $options["num"] : 0);
-        $color = (isset($options["color"]) === true ? $options["color"] : "");
-        $move = (isset($options["move"]) === true ? $options["move"] : "");
-        return ["num" => $num, "color" => $color, "move" => $move, "nag_codes" => [], "annotation" => "", "variation" => ""];
+        return ["num"=>$num, "color"=>$color, "move"=>$move, "nag_codes"=>[], "annotation"=>"", "variation"=>""];
+    }
+
+    public function seek($position)
+    {
+        if($this->valid() === true) {
+            $this->moveIndex = $position;
+        }
+        else {
+            throw new \OutOfBoundsException();
+        }
+    }
+
+    public function current()
+    {
+        if($this->valid() === true) {
+            return $this->moves[$this->moveIndex];
+        }
+        else{
+            return null;
+        }
+    }
+
+    public function key()
+    {
+        if($this->valid() === true) {
+            return $this->moves[$this->moveIndex]["move"];
+        }
+        else{
+            return null;
+        }
+    }
+
+    public function next()
+    {
+        $this->moveIndex++;
+    }
+
+    public function rewind()
+    {
+        $this->moveIndex = 0;
+    }
+
+    public function valid() : bool
+    {
+        return ( ($this->moveIndex >= 0) && ($this->moveIndex < count($this->moves)) );
     }
 }

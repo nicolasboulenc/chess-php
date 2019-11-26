@@ -1,4 +1,4 @@
-name: PHP Composer
+name: chess-composer
 
 on: [push]
 

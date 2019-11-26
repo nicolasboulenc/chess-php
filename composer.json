@@ -1,0 +1,11 @@
+{
+    "name": "nicolasboulenc/chess",
+    "description": "Chess library.",
+    "type": "library",
+    "require-dev": {
+        "phpunit/phpunit": "^8.4"
+    },
+    "scripts": {
+        "test": "phpunit --bootstrap vendor/autoload.php tests/pgn-test"
+    }
+}

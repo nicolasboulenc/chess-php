@@ -2,15 +2,13 @@
 
 require("../src/pgn.php");
 require("../src/eco.php");
-use nicolasboulenc;
 
 // load pgn file
-$file_content = file_get_contents("chess-game+annotations.pgn");
-$pgn = new Chess\PGN();
-$pgn->load($file_content);
+$pgn = new nicolasboulenc\Chess\PGN();
+$pgn->load("chess-game+annotations.pgn");
 
 // load eco file
-$eco = new Chess\ECO();
+$eco = new nicolasboulenc\Chess\ECO();
 $eco->load("scid.eco");
 
 // identify opening using iterable moves

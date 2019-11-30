@@ -1,10 +1,10 @@
 <?php
 
-require("../uci.php");
+require("../src/uci.php");
 
 $engine_path = "C:/Users/nicol/Documents/Scid-4.7.0/bin/engines/stockfish.exe";
 
-$uci = new Chess\UCI();
+$uci = new nicolasboulenc\Chess\UCI();
 $uci->init($engine_path);
 
 $uci->_uci();

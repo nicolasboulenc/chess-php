@@ -1,17 +1,16 @@
 <?php
 
-require("../pgn.php");
-require("../eco.php");
+require("../src/pgn.php");
+require("../src/eco.php");
+
 
 // load pgn file
-$file_content = file_get_contents("chess-game+annotations.pgn");
-$pgn = new Chess\PGN();
-$pgn->load($file_content);
+$pgn = new nicolasboulenc\Chess\PGN();
+$pgn->load("chess-game+annotations.pgn");
 
 // load eco file
-$eco_content = file_get_contents("scid.eco");
-$eco = new Chess\ECO();
-$eco->load($eco_content);
+$eco = new nicolasboulenc\Chess\ECO();
+$eco->load("scid.eco");
 
 // display players
 $white = $pgn->getTag("white");
@@ -22,7 +21,7 @@ echo "{$white} vs. {$black}" . PHP_EOL;
 $moves = $pgn->getSANs();
 
 // identify opening
-$opening = $eco->identify($moves);
+$opening = $eco->identifyMoves($moves);
 echo "{$opening["eco"]} {$opening["name"]}" . PHP_EOL;
 
 // write eco tag back to different pgn file

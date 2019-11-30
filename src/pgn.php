@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-namespace Chess;
+namespace nicolasboulenc\Chess;
 
 class PGN
 {
@@ -24,9 +24,14 @@ class PGN
         $this->moveIndex = 0;
     }
 
-    public function load(string &$pgn): void
+    public function load(string $filename): void
     {
         $this->init();
+        $pgn = file_get_contents($filename);
+        if ($pgn === false) {
+            throw new InvalidArgumentException("Unable to open file: {$filename}!");
+        }
+
         $this->parseTags($pgn);
         $this->parseMoves($pgn);
     }

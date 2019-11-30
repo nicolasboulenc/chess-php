@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-namespace Chess;
+namespace nicolasboulenc\Chess;
 
 class Chess
 {

@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-namespace Chess;
+namespace nicolasboulenc\Chess;
 
 class ECO
 {
@@ -17,9 +17,14 @@ class ECO
         $this->tree = null;
     }
 
-    public function load(string &$eco): void
+    public function load(string $filename): void
     {
         $this->init();
+
+        $eco = file_get_contents($filename);
+        if ($eco === false) {
+            throw new InvalidArgumentException("Unable to open file: {$filename}!");
+        }
 
         $eco_array = explode("\n", $eco);
         $eco_index = 0;
@@ -86,27 +91,39 @@ class ECO
         return (object) ["eco"=>$eco, "name"=>$name, "move"=>$move, "nodes"=>[]];
     }
 
-    public function identify(iterable $moves): ?array
+    public function identifyMoves(iterable $moves): ?array
     {
+        if ($this->tree === null) {
+            return null;
+        }
+
         $probe = $this->tree;
         $opening = ["eco"=>"", "name"=>""];
 
-        foreach ($moves as $move) {
+        $continue = true;
+        $move_index = 0;
+        $move_count = count($moves);
+
+        while ($move_index < $move_count && $continue === true) {
+            $move = $moves[$move_index];
             if (isset($probe->nodes[$move]) === true) {
                 $probe = $probe->nodes[$move];
                 $opening["eco"] = $probe->eco;
                 $opening["name"] = $probe->name;
             } else {
-                break;
+                $continue = false;
             }
         }
 
         return $opening;
     }
 
-    // not used
-    private function identifyString(string $moves): ?array
+    public function identifyMoveText(string $moves): ?array
     {
+        if ($this->tree === null) {
+            return null;
+        }
+
         $moves = explode(" ", $moves);
         $probe = $this->tree;
         $opening = ["eco" => "", "name" => ""];

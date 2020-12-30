@@ -113,6 +113,8 @@ class ECO
             } else {
                 $continue = false;
             }
+
+            $move_index++;
         }
 
         return $opening;

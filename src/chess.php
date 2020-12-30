@@ -8,7 +8,7 @@ class Chess
     public $chessboard;
     public $pgn;
     public $fen;
-    
+
     public function __construct()
     {
         $this->chessboard = null;

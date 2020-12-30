@@ -5,7 +5,7 @@ require("../src/eco.php");
 
 // load pgn file
 $pgn = new nicolasboulenc\Chess\PGN();
-$pgn->load("chess-game+annotations.pgn");
+$pgn->load("spasky-fischer.pgn");
 
 // load eco file
 $eco = new nicolasboulenc\Chess\ECO();
